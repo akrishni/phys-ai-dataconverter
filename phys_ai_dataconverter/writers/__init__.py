@@ -3,6 +3,6 @@ Output formats. A writer module provides `is_dataset(path)`, `video_path(root, c
 `VideoWriter`, and `write(root, ...)` for everything else; see lerobot_v3 for the reference.
 """
 
-from phys_ai_dataconvertor.writers import lerobot_v3
+from phys_ai_dataconverter.writers import lerobot_v3
 
 WRITERS = {"lerobot-v3": lerobot_v3}

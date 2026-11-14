@@ -3,7 +3,7 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "phys-ai-dataconvertor"
+name = "phys-ai-dataconverter"
 dynamic = ["version"]
 description = "Convert robot recordings (ROS 2 MCAP) into training datasets (LeRobot v3): cameras, joint state and actions aligned by capture time"
 readme = "README.md"
@@ -39,15 +39,15 @@ dependencies = [
 dev = ["pytest"]
 
 [project.urls]
-Homepage = "https://github.com/akrishni/phys-ai-dataconvertor"
-Documentation = "https://github.com/akrishni/phys-ai-dataconvertor#readme"
-Issues = "https://github.com/akrishni/phys-ai-dataconvertor/issues"
+Homepage = "https://github.com/akrishni/phys-ai-dataconverter"
+Documentation = "https://github.com/akrishni/phys-ai-dataconverter#readme"
+Issues = "https://github.com/akrishni/phys-ai-dataconverter/issues"
 
 [project.scripts]
-phys-ai-dataconvertor = "phys_ai_dataconvertor.cli:main"
+phys-ai-dataconverter = "phys_ai_dataconverter.cli:main"
 
 [tool.setuptools.dynamic]
-version = { attr = "phys_ai_dataconvertor.__version__" }
+version = { attr = "phys_ai_dataconverter.__version__" }
 
 [tool.setuptools.packages.find]
-include = ["phys_ai_dataconvertor*"]
+include = ["phys_ai_dataconverter*"]

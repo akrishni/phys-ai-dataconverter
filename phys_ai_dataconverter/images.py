@@ -5,7 +5,7 @@ from __future__ import annotations
 import av
 import numpy as np
 
-from phys_ai_dataconvertor.model import CompressedImage, ConversionError, RawImage
+from phys_ai_dataconverter.model import CompressedImage, ConversionError, RawImage
 
 RAW_ENCODINGS = {"rgb8": ("rgb24", 3), "bgr8": ("bgr24", 3), "rgba8": ("rgba", 4), "bgra8": ("bgra", 4),
                  "mono8": ("gray", 1)}

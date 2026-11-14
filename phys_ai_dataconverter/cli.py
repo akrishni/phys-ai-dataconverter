@@ -1,8 +1,8 @@
 """
-phys-ai-dataconvertor: convert robot recordings into training datasets.
+phys-ai-dataconverter: convert robot recordings into training datasets.
 
-    phys-ai-dataconvertor recordings/ -o ./pick_bottles --task "pick up the bottles"
-    phys-ai-dataconvertor rec1.mcap rec2.mcap -o ./ds --check preset:teleop-imitation
+    phys-ai-dataconverter recordings/ -o ./pick_bottles --task "pick up the bottles"
+    phys-ai-dataconverter rec1.mcap rec2.mcap -o ./ds --check preset:teleop-imitation
 
 Exit codes: 0 converted (and, with --check, the check passed), 1 the --check failed,
 2 the conversion was refused (the message says why), 4 the --check was unknown.
@@ -14,9 +14,9 @@ import argparse
 import sys
 from pathlib import Path
 
-from phys_ai_dataconvertor import __version__
+from phys_ai_dataconverter import __version__
 
-PROG = "phys-ai-dataconvertor"
+PROG = "phys-ai-dataconverter"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -25,7 +25,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="Convert robot recordings (one episode per file) into a LeRobot v3 dataset: one camera, "
                     "observation.state from a joint state topic and action from joint command topics, aligned "
                     "to the camera frames by nearest capture time. Input: ROS 2 MCAP.",
-        epilog="Example: phys-ai-dataconvertor recordings/ -o ./pick_bottles --task \"pick up the bottles\" "
+        epilog="Example: phys-ai-dataconverter recordings/ -o ./pick_bottles --task \"pick up the bottles\" "
                "--camera /zed/zed_node/left/image_rect_color/compressed --check preset:teleop-imitation",
     )
     p.add_argument("--version", action="version", version=f"{PROG} {__version__}")
@@ -63,7 +63,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _inputs(args: list[str]) -> list[Path]:
-    from phys_ai_dataconvertor.readers import input_extensions
+    from phys_ai_dataconverter.readers import input_extensions
     exts = input_extensions()
     files: list[Path] = []
     for i in args:
@@ -81,8 +81,8 @@ def _inputs(args: list[str]) -> list[Path]:
 def main(argv: list[str] | None = None) -> int:
     a = build_parser().parse_args(argv)
     log = (lambda m: None) if a.quiet else (lambda m: print(m, file=sys.stderr))
-    from phys_ai_dataconvertor.convert import ConvertOptions, convert, print_report
-    from phys_ai_dataconvertor.model import ConversionError
+    from phys_ai_dataconverter.convert import ConvertOptions, convert, print_report
+    from phys_ai_dataconverter.model import ConversionError
     try:
         files = _inputs(a.inputs)
         report = convert(files, a.output, ConvertOptions(
@@ -103,7 +103,7 @@ def main(argv: list[str] | None = None) -> int:
     if not a.check:
         log(f"Check it: {PROG} ... --check preset:teleop-imitation (or a requirements file)")
         return 0
-    from phys_ai_dataconvertor.verify import check
+    from phys_ai_dataconverter.verify import check
     log("")
     log(f"Checking {a.output} against {a.check} with phys-ai-dataprofiler")
     try:

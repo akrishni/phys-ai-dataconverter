@@ -1,12 +1,12 @@
-# phys-ai-dataconvertor
+# phys-ai-dataconverter
 
 Convert robot recordings into datasets you can train on. Version 0.1 turns ROS 2 teleoperation recordings
 (MCAP) into [LeRobot](https://github.com/huggingface/lerobot) v3 datasets. It pairs camera frames, joint
 state and the operator's commands by capture time, and refuses to fill gaps with stale values.
 
 ```bash
-pip install phys-ai-dataconvertor
-phys-ai-dataconvertor recordings/ -o ./pick_bottles --task "pick up the bottles" --check preset:teleop-imitation
+pip install phys-ai-dataconverter
+phys-ai-dataconverter recordings/ -o ./pick_bottles --task "pick up the bottles" --check preset:teleop-imitation
 ```
 
 Each `.mcap` file becomes one episode. `--check` then profiles the result's data table and videos with
@@ -75,15 +75,15 @@ Version 0.1 handles one camera per dataset, ROS 2 MCAP input, and joint state an
 ## Development
 
 ```bash
-git clone https://github.com/akrishni/phys-ai-dataconvertor
-cd phys-ai-dataconvertor
+git clone https://github.com/akrishni/phys-ai-dataconverter
+cd phys-ai-dataconverter
 pip install -e ".[dev]"
 python tests/run_all.py            # offline: MCAP files with known answers are written by the tests
 python tests/run_all.py --hub      # also convert a public recording from the Hub
 ```
 
 ```
-phys_ai_dataconvertor/
+phys_ai_dataconverter/
   model.py           Stream, image and topic types shared by everything below
   readers/           one module per input format (mcap_ros2)
   episode.py         one recording to one aligned episode: topic choice, clocks, alignment
@@ -91,7 +91,7 @@ phys_ai_dataconvertor/
   writers/           one module per output format (lerobot_v3)
   convert.py         the pipeline: read, align, write to <output>.partial, rename
   verify.py          --check: profile the output with phys-ai-dataprofiler and evaluate requirements
-  cli.py             the phys-ai-dataconvertor command
+  cli.py             the phys-ai-dataconverter command
 ```
 
 A new input format is a new module in `readers/` that produces `Stream`s. A new output format is a new

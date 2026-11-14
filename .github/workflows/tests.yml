@@ -74,5 +74,5 @@ jobs:
           python -m venv /tmp/smoke
           /tmp/smoke/bin/pip install dist/*.whl
           cd /tmp
-          /tmp/smoke/bin/phys-ai-dataconvertor --version
-          /tmp/smoke/bin/phys-ai-dataconvertor --help > /dev/null
+          /tmp/smoke/bin/phys-ai-dataconverter --version
+          /tmp/smoke/bin/phys-ai-dataconverter --help > /dev/null

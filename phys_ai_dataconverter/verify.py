@@ -19,7 +19,7 @@ from phys_ai_dataprofiler.evaluate import evaluate, print_verdict, render_verdic
 from phys_ai_dataprofiler.remote.mp4 import declared_videos
 from phys_ai_dataprofiler.requirements import RequirementsError, load_requirements
 
-from phys_ai_dataconvertor.model import ConversionError
+from phys_ai_dataconverter.model import ConversionError
 
 # The files that hold the recordings; meta/ holds bookkeeping tables, not data.
 DATA_GLOBS = ("data/**/*.parquet", "videos/**/*.mp4")

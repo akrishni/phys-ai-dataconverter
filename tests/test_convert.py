@@ -25,8 +25,8 @@ import av  # noqa: E402
 import pyarrow.parquet as pq  # noqa: E402
 from mcap_ros2.writer import Writer  # noqa: E402
 
-from phys_ai_dataconvertor import ConversionError, ConvertOptions, convert  # noqa: E402
-from phys_ai_dataconvertor.align import nearest  # noqa: E402
+from phys_ai_dataconverter import ConversionError, ConvertOptions, convert  # noqa: E402
+from phys_ai_dataconverter.align import nearest  # noqa: E402
 
 TMP = Path(tempfile.mkdtemp(prefix="convert_test_"))
 
@@ -328,7 +328,7 @@ def test_edges() -> None:
 
 
 def test_cli() -> None:
-    from phys_ai_dataconvertor.cli import main
+    from phys_ai_dataconverter.cli import main
     src = TMP / "rec.mcap"
     req = TMP / "req.yaml"
     req.write_text("streams:\n  - name: camera\n    match: {modality: video}\n    min_rate_hz: 25\n"

@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
-title: "phys-ai-dataconvertor: convert robot recordings into training datasets"
+title: "phys-ai-dataconverter: convert robot recordings into training datasets"
 type: software
 authors:
   - family-names: Krishniyer
@@ -8,8 +8,8 @@ authors:
     email: akrishniyer@gmail.com
 version: 0.1.0
 license: MIT
-repository-code: "https://github.com/akrishni/phys-ai-dataconvertor"
-url: "https://pypi.org/project/phys-ai-dataconvertor/"
+repository-code: "https://github.com/akrishni/phys-ai-dataconverter"
+url: "https://pypi.org/project/phys-ai-dataconverter/"
 keywords:
   - robotics
   - datasets

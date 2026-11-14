@@ -1,7 +1,7 @@
 """
 Recordings in, a training dataset out: each input file is one episode.
 
-    from phys_ai_dataconvertor import convert, ConvertOptions
+    from phys_ai_dataconverter import convert, ConvertOptions
     report = convert(["rec1.mcap", "rec2.mcap"], "./pick_bottles", ConvertOptions(task="pick up the bottles"))
 
 The work happens in three swappable parts: a reader per input format (`readers/`), the format-free
@@ -17,13 +17,13 @@ import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from phys_ai_dataconvertor import __version__
-from phys_ai_dataconvertor import episode as ep_mod
-from phys_ai_dataconvertor.episode import EpisodeReport
-from phys_ai_dataconvertor.images import Decoder
-from phys_ai_dataconvertor.model import ConversionError
-from phys_ai_dataconvertor.readers import reader_for
-from phys_ai_dataconvertor.writers import WRITERS
+from phys_ai_dataconverter import __version__
+from phys_ai_dataconverter import episode as ep_mod
+from phys_ai_dataconverter.episode import EpisodeReport
+from phys_ai_dataconverter.images import Decoder
+from phys_ai_dataconverter.model import ConversionError
+from phys_ai_dataconverter.readers import reader_for
+from phys_ai_dataconverter.writers import WRITERS
 
 
 @dataclass
@@ -164,7 +164,7 @@ def convert(inputs: list[str | Path], output: str | Path, opts: ConvertOptions |
             tmp, fps=fps, camera_key=key, resolution=report.resolution, vcodec=opts.vcodec, task=opts.task,
             robot_type=opts.robot_type, state_names=report.state_names, action_names=report.action_names,
             episodes=written, image_stats=image_stats,
-            provenance={"converter": f"phys-ai-dataconvertor {__version__}", **asdict(report),
+            provenance={"converter": f"phys-ai-dataconverter {__version__}", **asdict(report),
                         "total_frames": report.total_frames})
     except BaseException:
         if video is not None:

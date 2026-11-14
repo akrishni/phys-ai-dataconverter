@@ -24,7 +24,7 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from phys_ai_dataconvertor.model import ConversionError
+from phys_ai_dataconverter.model import ConversionError
 
 CODEBASE_VERSION = "v3.0"
 QUANTILES = (0.01, 0.10, 0.50, 0.90, 0.99)

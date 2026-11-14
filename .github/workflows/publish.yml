@@ -1,7 +1,7 @@
 name: publish
 
 # Push a version tag to release:  git tag v0.1.0 && git push origin v0.1.0
-# The tag must match __version__ in phys_ai_dataconvertor/__init__.py.
+# The tag must match __version__ in phys_ai_dataconverter/__init__.py.
 on:
   push:
     tags: ["v*"]
@@ -23,7 +23,7 @@ jobs:
 
       - name: Check the tag matches the package version
         run: |
-          version=$(python -c "import re, pathlib; print(re.search(r'__version__ = \"(.+?)\"', pathlib.Path('phys_ai_dataconvertor/__init__.py').read_text()).group(1))")
+          version=$(python -c "import re, pathlib; print(re.search(r'__version__ = \"(.+?)\"', pathlib.Path('phys_ai_dataconverter/__init__.py').read_text()).group(1))")
           if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
             echo "::error::tag ${GITHUB_REF_NAME} does not match __version__ ${version} (expected tag v${version})"
             exit 1
@@ -54,7 +54,7 @@ jobs:
     # Must match the environment name entered in the PyPI trusted publisher settings.
     environment:
       name: pypi
-      url: https://pypi.org/project/phys-ai-dataconvertor/
+      url: https://pypi.org/project/phys-ai-dataconverter/
     permissions:
       id-token: write   # trusted publishing: PyPI accepts GitHub's OIDC token, no API token stored
     steps:

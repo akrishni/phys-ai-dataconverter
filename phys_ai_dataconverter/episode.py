@@ -24,9 +24,9 @@ from pathlib import Path
 
 import numpy as np
 
-from phys_ai_dataconvertor.align import nearest
-from phys_ai_dataconvertor.model import IMAGE, JOINT_COMMAND, JOINT_STATE, ConversionError, Stream
-from phys_ai_dataconvertor.readers import reader_for
+from phys_ai_dataconverter.align import nearest
+from phys_ai_dataconverter.model import IMAGE, JOINT_COMMAND, JOINT_STATE, ConversionError, Stream
+from phys_ai_dataconverter.readers import reader_for
 
 
 @dataclass

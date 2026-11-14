@@ -14,8 +14,8 @@ from __future__ import annotations
 from pathlib import Path
 from types import ModuleType
 
-from phys_ai_dataconvertor.model import ConversionError
-from phys_ai_dataconvertor.readers import mcap_ros2
+from phys_ai_dataconverter.model import ConversionError
+from phys_ai_dataconverter.readers import mcap_ros2
 
 READERS: dict[str, ModuleType] = {"mcap-ros2": mcap_ros2}
 

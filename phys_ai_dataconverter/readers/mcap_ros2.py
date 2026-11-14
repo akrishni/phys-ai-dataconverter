@@ -14,7 +14,7 @@ import numpy as np
 from mcap.reader import make_reader
 from mcap_ros2.decoder import DecoderFactory
 
-from phys_ai_dataconvertor.model import (
+from phys_ai_dataconverter.model import (
     IMAGE, JOINT_COMMAND, JOINT_STATE, CompressedImage, ConversionError, RawImage, Stream, TopicInfo,
 )
 
