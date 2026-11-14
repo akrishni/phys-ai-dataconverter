@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "phys-ai-dataconvertor: convert robot recordings into training datasets"
+type: software
+authors:
+  - family-names: Krishniyer
+    given-names: Anand
+    email: akrishniyer@gmail.com
+version: 0.1.0
+license: MIT
+repository-code: "https://github.com/akrishni/phys-ai-dataconvertor"
+url: "https://pypi.org/project/phys-ai-dataconvertor/"
+keywords:
+  - robotics
+  - datasets
+  - MCAP
+  - ROS 2
+  - LeRobot
+  - imitation learning
+abstract: >
+  Converts ROS 2 MCAP teleoperation recordings into LeRobot v3 datasets, aligning camera frames,
+  joint state and operator commands by capture time, and verifies the output with phys-ai-dataprofiler.

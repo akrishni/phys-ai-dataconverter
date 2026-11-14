@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "phys-ai-dataconvertor"
+dynamic = ["version"]
+description = "Convert robot recordings (ROS 2 MCAP) into training datasets (LeRobot v3): cameras, joint state and actions aligned by capture time"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Anand Krishniyer" }, { email = "akrishniyer@gmail.com" }]   # separate entries so Author is set
+requires-python = ">=3.10"
+keywords = ["robotics", "dataset", "mcap", "ros2", "rosbag", "lerobot", "imitation-learning", "conversion"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "phys-ai-dataprofiler>=0.4.0",   # --check profiles the output with it (MP4 support arrived in 0.4.0)
+    "mcap>=1.0",
+    "mcap-ros2-support>=0.5",        # decodes ROS 2 (CDR) messages from the definitions in the file
+    "av>=12",                        # PyAV: decodes camera images, encodes the output video
+    "numpy",
+    "pyarrow>=14",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.urls]
+Homepage = "https://github.com/akrishni/phys-ai-dataconvertor"
+Documentation = "https://github.com/akrishni/phys-ai-dataconvertor#readme"
+Issues = "https://github.com/akrishni/phys-ai-dataconvertor/issues"
+
+[project.scripts]
+phys-ai-dataconvertor = "phys_ai_dataconvertor.cli:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "phys_ai_dataconvertor.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["phys_ai_dataconvertor*"]
