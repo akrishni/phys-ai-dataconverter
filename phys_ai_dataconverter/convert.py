@@ -28,7 +28,8 @@ from phys_ai_dataconverter.writers import WRITERS
 
 @dataclass
 class ConvertOptions:
-    camera: str | None = None                 # image topic; None picks the highest-resolution one
+    cameras: list[str] | None = None          # image topics; None picks the highest-resolution one
+    camera_keys: list[str] | None = None      # feature names; None: observation.images.<from the topic>
     state_topic: str | None = None            # joint state topic; None picks the busiest one
     action_topics: list[str] | None = None    # joint command topics, concatenated in this order
     state_joints: list[str] | None = None     # joints for observation.state; None = the commanded joints
@@ -37,7 +38,6 @@ class ConvertOptions:
     fps: int | None = None                    # None: the camera's measured rate, rounded
     tolerance_ms: float | None = None         # None: half a frame interval
     clock: str = "auto"                       # "auto", "header" or "log" (see episode.py)
-    camera_key: str | None = None             # feature name; None: observation.images.<from the topic>
     robot_type: str | None = None
     output_format: str = "lerobot-v3"
     vcodec: str = "libsvtav1"                 # LeRobot's default; "h264" encodes faster
@@ -51,9 +51,9 @@ class ConversionReport:
     output: str
     output_format: str
     fps: int
-    camera_topic: str
-    camera_key: str
-    resolution: list[int]
+    camera_topics: list[str]
+    camera_keys: list[str]
+    resolutions: dict[str, list[int]]  # camera_key -> [width, height]
     state_topic: str
     state_names: list[str]
     action_topics: list[str]
@@ -81,8 +81,8 @@ def camera_key(topic: str) -> str:
     return "observation.images." + "".join(c if c.isalnum() or c == "_" else "_" for c in "_".join(kept))
 
 
-def _largest_camera(path: Path, topics: list[str]) -> str:
-    """The image topic with the most pixels in its first frame."""
+def _largest_cameras(path: Path, topics: list[str]) -> list[str]:
+    """The image topics sorted by pixels in first frame (largest first). Default: return all cameras."""
     decode = Decoder()
     sizes = {}
     for t, img in reader_for(path).first_images(path, topics).items():
@@ -91,7 +91,7 @@ def _largest_camera(path: Path, topics: list[str]) -> str:
             sizes[t] = rgb.shape[0] * rgb.shape[1]
         except ConversionError:
             sizes[t] = 0
-    return max(topics, key=lambda t: sizes.get(t, 0))
+    return sorted(topics, key=lambda t: sizes.get(t, 0), reverse=True)
 
 
 def convert(inputs: list[str | Path], output: str | Path, opts: ConvertOptions | None = None,
@@ -116,15 +116,22 @@ def convert(inputs: list[str | Path], output: str | Path, opts: ConvertOptions |
             raise ConversionError(f"{out} is not empty and is not a {opts.output_format} dataset; refusing to delete it")
         shutil.rmtree(out)
 
-    sel = ep_mod.select(paths[0], opts.camera, opts.state_topic, opts.action_topics, opts.no_action, _largest_camera)
-    key = opts.camera_key or camera_key(sel.camera)
-    log(f"camera {sel.camera} -> {key}; state {sel.state_topic}; action {', '.join(sel.action_topics) or '(none)'}")
+    sel = ep_mod.select(paths[0], opts.cameras, opts.state_topic, opts.action_topics, opts.no_action, _largest_cameras)
+    keys = []
+    if opts.camera_keys:
+        if len(opts.camera_keys) != len(sel.cameras):
+            raise ConversionError(f"--camera-keys has {len(opts.camera_keys)} names but {len(sel.cameras)} cameras")
+        keys = opts.camera_keys
+    else:
+        keys = [camera_key(c) for c in sel.cameras]
+    log(f"cameras: {', '.join(f'{t} -> {k}' for t, k in zip(sel.cameras, keys))}; "
+        f"state {sel.state_topic}; action {', '.join(sel.action_topics) or '(none)'}")
 
     tmp = out.with_name(out.name + ".partial")
     if tmp.exists():
         shutil.rmtree(tmp)
     fps, tol_ns = opts.fps, None
-    video = None
+    videos = {}  # camera_key -> VideoWriter
     report: ConversionReport | None = None
     written: list[dict] = []
     try:
@@ -134,21 +141,40 @@ def convert(inputs: list[str | Path], output: str | Path, opts: ConvertOptions |
                 raise ConversionError(f"{p.name}: action joints {ep.action_names} differ from the first "
                                       f"episode's {report.action_names}")
             decode = Decoder()
-            video_from = video.frames / fps if video else 0.0
-            for i, img in enumerate(ep.frames):
-                rgb = decode(img)
-                if video is None:
-                    video = writer_mod.VideoWriter(writer_mod.video_path(tmp, key), fps, rgb.shape[1], rgb.shape[0],
-                                                   opts.vcodec, opts.crf, opts.gop)
-                    report = ConversionReport(
-                        output=str(out), output_format=opts.output_format, fps=fps, camera_topic=sel.camera,
-                        camera_key=key, resolution=[rgb.shape[1], rgb.shape[0]], state_topic=sel.state_topic,
-                        state_names=ep.state_names, action_topics=sel.action_topics, action_names=ep.action_names,
-                        tolerance_ms=tol_ns / 1e6)
-                video.add(rgb)
-                if (i + 1) % 300 == 0:
-                    log(f"    {p.name}: {i + 1}/{len(ep.frames)} frames")
-            written.append({"state": ep.state, "action": ep.action, "video_from_s": video_from})
+
+            # Process all cameras
+            video_from_per_cam = {}
+            frames_per_cam = {}
+            for cam_topic, key in zip(sel.cameras, keys):
+                frames = ep.frames[cam_topic]
+                video_from = videos[key].frames / fps if key in videos else 0.0
+                video_from_per_cam[key] = video_from
+
+                decoded_frames = []
+                for i, img in enumerate(frames):
+                    rgb = decode(img)
+                    if key not in videos:
+                        videos[key] = writer_mod.VideoWriter(writer_mod.video_path(tmp, key), fps, rgb.shape[1],
+                                                            rgb.shape[0], opts.vcodec, opts.crf, opts.gop)
+                        if report is None:
+                            report = ConversionReport(
+                                output=str(out), output_format=opts.output_format, fps=fps,
+                                camera_topics=sel.cameras, camera_keys=keys,
+                                resolutions={key: [rgb.shape[1], rgb.shape[0]]},
+                                state_topic=sel.state_topic, state_names=ep.state_names,
+                                action_topics=sel.action_topics, action_names=ep.action_names,
+                                tolerance_ms=tol_ns / 1e6)
+                        else:
+                            # Add resolution for new camera
+                            if key not in report.resolutions:
+                                report.resolutions[key] = [rgb.shape[1], rgb.shape[0]]
+                    videos[key].add(rgb)
+                    decoded_frames.append(rgb)
+                    if (i + 1) % 300 == 0:
+                        log(f"    {p.name} ({key}): {i + 1}/{len(frames)} frames")
+                frames_per_cam[key] = decoded_frames
+
+            written.append({"state": ep.state, "action": ep.action, "video_from_s": video_from_per_cam})
             report.episodes.append(ep.report)
             r = ep.report
             log(f"  episode {ei}: {p.name}: {r.frames} frames at {fps} fps ({r.clock} clock), "
@@ -156,18 +182,23 @@ def convert(inputs: list[str | Path], output: str | Path, opts: ConvertOptions |
                 + (f", action within {r.action_age_ms_max:.1f} ms" if r.action_age_ms_max is not None else "")
                 + (f"; dropped {r.dropped_start} leading / {r.dropped_end} trailing frame(s)"
                    if r.dropped_start or r.dropped_end else ""))
-        video.close()
-        image_stats = video.stats.snapshot()
-        video = None
+
+        # Close all videos and collect stats
+        image_stats_per_cam = {}
+        for key, video in videos.items():
+            video.close()
+            image_stats_per_cam[key] = video.stats.snapshot()
+        videos = {}
+
         _notes(report)
         writer_mod.write(
-            tmp, fps=fps, camera_key=key, resolution=report.resolution, vcodec=opts.vcodec, task=opts.task,
+            tmp, fps=fps, camera_keys=keys, resolutions=report.resolutions, vcodec=opts.vcodec, task=opts.task,
             robot_type=opts.robot_type, state_names=report.state_names, action_names=report.action_names,
-            episodes=written, image_stats=image_stats,
+            episodes=written, image_stats=image_stats_per_cam,
             provenance={"converter": f"phys-ai-dataconverter {__version__}", **asdict(report),
                         "total_frames": report.total_frames})
     except BaseException:
-        if video is not None:
+        for video in videos.values():
             video.abort()
         shutil.rmtree(tmp, ignore_errors=True)
         raise
@@ -216,7 +247,9 @@ def print_report(r: ConversionReport, log=lambda m: print(m, file=sys.stderr)) -
     log("")
     log(f"Wrote {r.output} ({r.output_format}): {len(r.episodes)} episode(s), {r.total_frames} frames at "
         f"{r.fps} fps ({r.total_frames / r.fps:.1f} s)")
-    log(f"  {r.camera_key}: {r.camera_topic}, {r.resolution[0]}x{r.resolution[1]}")
+    for cam_topic, cam_key in zip(r.camera_topics, r.camera_keys):
+        res = r.resolutions[cam_key]
+        log(f"  {cam_key}: {cam_topic}, {res[0]}x{res[1]}")
     log(f"  observation.state: {len(r.state_names)} joints from {r.state_topic}")
     if r.action_names:
         log(f"  action: {len(r.action_names)} joints from {len(r.action_topics)} command topic(s)")

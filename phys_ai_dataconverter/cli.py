@@ -22,19 +22,22 @@ PROG = "phys-ai-dataconverter"
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog=PROG,
-        description="Convert robot recordings (one episode per file) into a LeRobot v3 dataset: one camera, "
+        description="Convert robot recordings (one episode per file) into a LeRobot v3 dataset: one or more cameras, "
                     "observation.state from a joint state topic and action from joint command topics, aligned "
-                    "to the camera frames by nearest capture time. Input: ROS 2 MCAP.",
+                    "to the primary camera frames by nearest capture time. Input: ROS 2 MCAP.",
         epilog="Example: phys-ai-dataconverter recordings/ -o ./pick_bottles --task \"pick up the bottles\" "
-               "--camera /zed/zed_node/left/image_rect_color/compressed --check preset:teleop-imitation",
+               "--camera /zed/left/image --camera /wrist/image --check preset:teleop-imitation",
     )
     p.add_argument("--version", action="version", version=f"{PROG} {__version__}")
     p.add_argument("inputs", nargs="+", help="Recording files, or folders searched for them (one episode per file)")
     p.add_argument("--output", "-o", required=True, help="Folder for the new dataset")
     p.add_argument("--task", default="teleoperation", help="Task description stored with every episode")
     s = p.add_argument_group("streams (defaults are picked from the first file and printed)")
-    s.add_argument("--camera", help="Image topic (default: the highest-resolution one)")
-    s.add_argument("--camera-key", help="Feature name (default: observation.images.<from the topic>)")
+    s.add_argument("--camera", action="append", dest="cameras",
+                   help="Image topic; repeat for multiple cameras (default: all cameras, largest first)")
+    s.add_argument("--camera-key", action="append", dest="camera_keys",
+                   help="Feature name for corresponding --camera; repeat for each camera "
+                        "(default: observation.images.<from the topic>)")
     s.add_argument("--state-topic", help="Joint state topic (default: the busiest one)")
     s.add_argument("--state-joints", help="Comma-separated joint names for observation.state "
                                           "(default: the joints the action topics command)")
@@ -86,7 +89,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         files = _inputs(a.inputs)
         report = convert(files, a.output, ConvertOptions(
-            camera=a.camera, camera_key=a.camera_key, state_topic=a.state_topic,
+            cameras=a.cameras, camera_keys=a.camera_keys, state_topic=a.state_topic,
             state_joints=[j.strip() for j in a.state_joints.split(",")] if a.state_joints else None,
             action_topics=a.action_topics, no_action=a.no_action, task=a.task, fps=a.fps,
             tolerance_ms=a.tolerance_ms, clock=a.clock, output_format=a.output_format, vcodec=a.vcodec,

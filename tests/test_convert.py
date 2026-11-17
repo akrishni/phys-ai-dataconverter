@@ -221,7 +221,7 @@ def test_basic() -> None:
     stats = json.loads((out_dir("basic") / "meta" / "stats.json").read_text())
     st = np.float64([r["observation.state"] for r in rows])
     check(np.allclose(stats["observation.state"]["mean"], st.mean(0)) and "q01" in stats["action"]
-          and np.asarray(stats[rep.camera_key]["mean"]).shape == (3, 1, 1), "stats: per-joint mean, quantiles, image stats (3,1,1)")
+          and np.asarray(stats[rep.camera_keys[0]]["mean"]).shape == (3, 1, 1), "stats: per-joint mean, quantiles, image stats (3,1,1)")
 
     # log clock pairs each frame with a joint reading ~25 ms later than its capture
     rep_log = convert([src], out_dir("log"), ConvertOptions(clock="log"))
@@ -253,7 +253,7 @@ def test_episodes() -> None:
     rep = convert([a, b], out_dir("two"), ConvertOptions())
     info, rows, frames, _ = load(out_dir("two"))
     eps = pq.read_table(out_dir("two") / "meta" / "episodes" / "chunk-000" / "file-000.parquet").to_pylist()
-    key = rep.camera_key
+    key = rep.camera_keys[0]
     n0 = eps[0]["length"]
     check(info["total_episodes"] == 2 and len(frames) == len(rows) == n0 + eps[1]["length"],
           "two files, two episodes, one video holding both")
@@ -290,14 +290,16 @@ def test_edges() -> None:
     raw = recording(TMP / "raw.mcap", raw=True)
     rep = convert([raw], out_dir("raw"), ConvertOptions())
     _, _, frames, _ = load(out_dir("raw"))
-    check(rep.resolution == [64, 48] and len(frames) == rep.total_frames, "raw sensor_msgs/Image (rgb8) converts")
+    check(rep.resolutions[rep.camera_keys[0]] == [64, 48] and len(frames) == rep.total_frames, "raw sensor_msgs/Image (rgb8) converts")
 
     two = recording(TMP / "twocam.mcap", extra_camera=True)
     rep = convert([two], out_dir("twocam"), ConvertOptions())
-    check(rep.camera_topic == "/cam/image_raw/compressed" and rep.camera_key == "observation.images.cam",
-          f"with two cameras, the higher-resolution one is the default ({rep.camera_key})")
-    rep = convert([two], out_dir("small"), ConvertOptions(camera="/small/image_raw/compressed"))
-    check(rep.resolution == [32, 24], "--camera picks another")
+    # With multi-camera: all cameras are included by default, sorted by size (largest first)
+    check(len(rep.camera_topics) == 2 and rep.camera_topics[0] == "/cam/image_raw/compressed"
+          and rep.camera_keys[0] == "observation.images.cam",
+          f"with two cameras, both are included, largest first ({rep.camera_keys[0]})")
+    rep = convert([two], out_dir("small"), ConvertOptions(cameras=["/small/image_raw/compressed"]))
+    check(rep.resolutions[rep.camera_keys[0]] == [32, 24], "--cameras picks specific ones")
 
     stamped = recording(TMP / "stamped.mcap", stamped_commands=True)
     check(convert([stamped], out_dir("stamped"), ConvertOptions()).episodes[0].clock == "header",
@@ -305,7 +307,7 @@ def test_edges() -> None:
     check(convert([src := TMP / "rec.mcap"], out_dir("noact"), ConvertOptions(no_action=True)).action_names == []
           and "action" not in json.loads((out_dir("noact") / "meta" / "info.json").read_text())["features"],
           "--no-action: no action feature")
-    for opts, words in ((ConvertOptions(camera="/nope"), "not in"), (ConvertOptions(clock="header"), "no header stamp"),
+    for opts, words in ((ConvertOptions(cameras=["/nope"]), "not in"), (ConvertOptions(clock="header"), "no header stamp"),
                         (ConvertOptions(state_joints=["j1", "missing"]), "no joint")):
         try:
             convert([src], out_dir("err"), opts)
@@ -368,7 +370,8 @@ def test_hub() -> None:
                              local_dir=str(TMP / "hub")))
     rep = convert([p], out_dir("hub_out"), ConvertOptions(task="test"))
     e = rep.episodes[0]
-    check(rep.camera_topic == "/zed/zed_node/left/image_rect_color/compressed" and rep.resolution == [672, 376]
+    check(rep.camera_topics[0] == "/zed/zed_node/left/image_rect_color/compressed"
+          and rep.resolutions[rep.camera_keys[0]] == [672, 376]
           and len(rep.state_names) == 19 and e.clock == "mixed" and e.state_age_ms_max < 6,
           f"Hub teleop MCAP: {e.frames} frames, 19 joints, state within {e.state_age_ms_max:.1f} ms of capture")
 

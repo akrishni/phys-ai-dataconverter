@@ -147,14 +147,14 @@ def scalar_stats(x: np.ndarray, integer: bool) -> dict:
     return s
 
 
-def write(root: Path, *, fps: int, camera_key: str, resolution: list[int], vcodec: str, task: str,
+def write(root: Path, *, fps: int, camera_keys: list[str], resolutions: dict[str, list[int]], vcodec: str, task: str,
           robot_type: str | None, state_names: list[str], action_names: list[str],
-          episodes: list[dict], image_stats: dict, provenance: dict) -> None:
-    """Write everything except the video (already written by VideoWriter).
+          episodes: list[dict], image_stats: dict[str, dict], provenance: dict) -> None:
+    """Write everything except the videos (already written by VideoWriter instances).
 
-    `episodes`: per episode {"state": (n, k) array, "action": (n, m) array or None, "video_from_s": float}.
+    `episodes`: per episode {"state": (n, k) array, "action": (n, m) array or None, "video_from_s": {key: float}}.
+    `image_stats`: per camera key.
     """
-    w, h = resolution
     n_total = sum(len(e["state"]) for e in episodes)
     has_action = bool(action_names)
 
@@ -185,13 +185,16 @@ def write(root: Path, *, fps: int, camera_key: str, resolution: list[int], vcode
     pq.write_table(pa.table(table), data_path)
 
     # ---- info.json -----------------------------------------------------------------------
-    features = {
-        camera_key: {"dtype": "video", "shape": [h, w, 3], "names": ["height", "width", "channels"],
-                     "info": {"video.height": h, "video.width": w, "video.codec": CODEC_NAMES.get(vcodec, vcodec),
-                              "video.pix_fmt": "yuv420p", "video.is_depth_map": False, "video.fps": fps,
-                              "video.channels": 3, "has_audio": False}},
-        "observation.state": {"dtype": "float32", "shape": [len(state_names)], "names": state_names},
-    }
+    features = {}
+    for camera_key in camera_keys:
+        w, h = resolutions[camera_key]
+        features[camera_key] = {
+            "dtype": "video", "shape": [h, w, 3], "names": ["height", "width", "channels"],
+            "info": {"video.height": h, "video.width": w, "video.codec": CODEC_NAMES.get(vcodec, vcodec),
+                     "video.pix_fmt": "yuv420p", "video.is_depth_map": False, "video.fps": fps,
+                     "video.channels": 3, "has_audio": False}
+        }
+    features["observation.state"] = {"dtype": "float32", "shape": [len(state_names)], "names": state_names}
     if has_action:
         features["action"] = {"dtype": "float32", "shape": [len(action_names)], "names": action_names}
     for k, dt in INDEX_FEATURES:
@@ -209,8 +212,10 @@ def write(root: Path, *, fps: int, camera_key: str, resolution: list[int], vcode
     (meta / "info.json").write_text(json.dumps(info, indent=4))
 
     # ---- stats.json ----------------------------------------------------------------------
-    stats = {camera_key: image_stats,
-             "observation.state": vector_stats(np.asarray(cols["observation.state"], dtype=np.float64))}
+    stats = {}
+    for camera_key in camera_keys:
+        stats[camera_key] = image_stats[camera_key]
+    stats["observation.state"] = vector_stats(np.asarray(cols["observation.state"], dtype=np.float64))
     if has_action:
         stats["action"] = vector_stats(np.asarray(cols["action"], dtype=np.float64))
     for k, dt in INDEX_FEATURES:
@@ -231,20 +236,44 @@ def write(root: Path, *, fps: int, camera_key: str, resolution: list[int], vcode
     pq.write_table(tasks, meta / "tasks.parquet")
 
     # ---- episodes table ------------------------------------------------------------------
-    vk = f"videos/{camera_key}"
+    # Build column names for all cameras
+    video_cols = []
+    for camera_key in camera_keys:
+        vk = f"videos/{camera_key}"
+        video_cols += [f"{vk}/chunk_index", f"{vk}/file_index", f"{vk}/from_timestamp", f"{vk}/to_timestamp"]
+
     ep_cols: dict[str, list] = {k: [] for k in (
-        "episode_index", "data/chunk_index", "data/file_index", "dataset_from_index", "dataset_to_index",
-        f"{vk}/chunk_index", f"{vk}/file_index", f"{vk}/from_timestamp", f"{vk}/to_timestamp",
-        "tasks", "length", "meta/episodes/chunk_index", "meta/episodes/file_index")}
+        ["episode_index", "data/chunk_index", "data/file_index", "dataset_from_index", "dataset_to_index"] +
+        video_cols +
+        ["tasks", "length", "meta/episodes/chunk_index", "meta/episodes/file_index"]
+    )}
     stat_cols: dict[str, list] = {}
     for ei, (e, (a, b)) in enumerate(zip(episodes, spans, strict=True)):
         n = b - a
-        for k, v in (("episode_index", ei), ("data/chunk_index", 0), ("data/file_index", 0),
-                     ("dataset_from_index", a), ("dataset_to_index", b),
-                     (f"{vk}/chunk_index", 0), (f"{vk}/file_index", 0),
-                     (f"{vk}/from_timestamp", e["video_from_s"]), (f"{vk}/to_timestamp", e["video_from_s"] + n / fps),
-                     ("tasks", [task]), ("length", n), ("meta/episodes/chunk_index", 0), ("meta/episodes/file_index", 0)):
+        # Basic episode info
+        base_fields = [
+            ("episode_index", ei), ("data/chunk_index", 0), ("data/file_index", 0),
+            ("dataset_from_index", a), ("dataset_to_index", b),
+        ]
+        for k, v in base_fields:
             ep_cols[k].append(v)
+
+        # Add video info for each camera
+        for camera_key in camera_keys:
+            vk = f"videos/{camera_key}"
+            video_from_s = e["video_from_s"][camera_key]
+            for k, v in [
+                (f"{vk}/chunk_index", 0), (f"{vk}/file_index", 0),
+                (f"{vk}/from_timestamp", video_from_s), (f"{vk}/to_timestamp", video_from_s + n / fps)
+            ]:
+                ep_cols[k].append(v)
+
+        # Tasks and metadata
+        for k, v in [("tasks", [task]), ("length", n),
+                     ("meta/episodes/chunk_index", 0), ("meta/episodes/file_index", 0)]:
+            ep_cols[k].append(v)
+
+        # Per-episode stats
         per = {"observation.state": vector_stats(e["state"])}
         if has_action:
             per["action"] = vector_stats(e["action"])

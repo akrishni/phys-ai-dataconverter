@@ -13,23 +13,29 @@ Each `.mcap` file becomes one episode. `--check` then profiles the result's data
 [phys-ai-dataprofiler](https://github.com/akrishni/phys-ai-dataprofiler) and checks it against a
 requirements file or profiler preset, saving the report in `meta/check.md`. The output works unchanged with LeRobot's `LeRobotDataset` and `lerobot-train`.
 
+**Multi-camera support:** By default, all cameras in the recording are included (largest resolution first). Use `--camera` to select specific cameras:
+```bash
+phys-ai-dataconverter recordings/ -o ./dataset --camera /zed/left/image --camera /wrist/image
+```
+
 ## What goes in
 
 The camera's frames are the timeline, one row per frame:
 
 | Column | From | Default |
 |---|---|---|
-| `observation.images.<camera>` | `sensor_msgs/CompressedImage` (JPEG, PNG) or raw `sensor_msgs/Image`, encoded to AV1 | the highest-resolution camera; `--camera` |
+| `observation.images.<camera>` | `sensor_msgs/CompressedImage` (JPEG, PNG) or raw `sensor_msgs/Image`, encoded to AV1 | all cameras, sorted by resolution (largest first); `--camera` to select specific ones |
 | `observation.state` | `sensor_msgs/JointState` positions | the joints the action commands; `--state-joints` |
 | `action` | `trajectory_msgs/JointTrajectory` commands (the teleop leader), concatenated | every such topic; `--action-topic`, `--no-action` |
 
-The camera name comes from the topic: `/zed/zed_node/left/image_rect_color/compressed` becomes
-`observation.images.zed_left`, or set it with `--camera-key`. The topics are chosen from the first file and
+Camera names come from topics: `/zed/zed_node/left/image_rect_color/compressed` becomes
+`observation.images.zed_left`, or set with `--camera-key` (one per `--camera`). The topics are chosen from the first file and
 printed, and every later file must have the same ones.
 
 ## Alignment
 
-Each frame takes the joint reading and the command nearest to it in time, within half a frame interval
+The primary camera (first in the list) defines the timeline. Each primary camera frame takes the joint reading, 
+the command, and all secondary camera frames nearest to it in time, within half a frame interval
 (`--tolerance-ms`). Leading or trailing frames with no match yet are dropped. A frame in the middle with no
 match stops the conversion with the time and size of the gap. That's a gap in the recording, so the frame
 isn't filled with a stale value. Raise `--tolerance-ms` to accept it.
@@ -69,8 +75,8 @@ two-arm teleop robot: 3 recordings, 1,777 frames at 30 fps, 19 joints.
 
 ## Limits
 
-Version 0.1 handles one camera per dataset, ROS 2 MCAP input, and joint state and commands from
-`JointState` and `JointTrajectory`. Planned next: several cameras, ROS 1 `.bag` and ROS 2 `.db3`.
+Version 0.2 handles multiple cameras per dataset, ROS 2 MCAP input, and joint state and commands from
+`JointState` and `JointTrajectory`. Planned next: ROS 1 `.bag` and ROS 2 `.db3`.
 
 ## Development
 
